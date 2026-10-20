@@ -158,6 +158,8 @@
           email,
           password,
           options: {
+            // Send the confirmation link back to the site hosting this page, not localhost.
+            emailRedirectTo: window.location.origin,
             data: {
               username,
               display_name: displayName || username
