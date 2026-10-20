@@ -12,6 +12,7 @@
   <style>
     :root{color-scheme:dark;--bg:#0b0c0f;--panel:#121419;--panel2:#171a20;--line:#292d36;--text:#f4f5f7;--muted:#969ba7;--yellow:#f5c400;--yellow-hover:#ffda38;--danger:#ff7777;--success:#9ee6b0}
     *{box-sizing:border-box}
+    [hidden]{display:none!important}
     body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -15%,rgba(245,196,0,.11),transparent 48%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;display:flex;flex-direction:column}
     .topbar{height:76px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,72px)}
     .brand{display:flex;align-items:center;gap:11px;color:var(--text);font-size:18px;font-weight:800;letter-spacing:.09em;text-decoration:none}
@@ -53,6 +54,7 @@
     <span class="topnote">ALPHA ACCOUNT SERVICES</span>
   </header>
   <main>
+    <div id="registration-content">
     <div class="eyebrow">Your account starts here</div>
     <h1>Create your<br />Alpha Account.</h1>
     <p class="intro">Create one account for the Alpha community. Your account rank is managed separately by the Alpha team.</p>
@@ -91,6 +93,13 @@
         <p class="fineprint">By creating an account, you agree to use Alpha respectfully. <strong>Ranks cannot be selected during registration.</strong></p>
       </form>
     </section>
+    </div>
+    <section id="complete-state" class="card" aria-labelledby="complete-title" hidden>
+      <div class="eyebrow">Email verified</div>
+      <h1 id="complete-title">Registration<br />complete.</h1>
+      <p class="intro">Your email address has been confirmed and your Alpha account is ready. You can now sign in to Alpha with the email address and password you registered with.</p>
+      <p class="fineprint">You can safely close this page.</p>
+    </section>
   </main>
   <footer>POWERED BY <span>ALPHA</span> · ACCOUNT REGISTRATION</footer>
   <script type="module">
@@ -107,11 +116,43 @@
     const message = document.querySelector('#message');
     const usernameInput = document.querySelector('#username');
     const displayNameInput = document.querySelector('#display-name');
+    const registrationContent = document.querySelector('#registration-content');
+    const completeState = document.querySelector('#complete-state');
 
     function showMessage(text, type) {
       message.textContent = text;
       message.className = 'message show ' + type;
     }
+
+    // Supabase returns here after a confirmation link. Show a dedicated completion
+    // state only after the callback has produced a confirmed user session.
+    async function handleEmailConfirmation() {
+      const params = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const isSignupCallback =
+        params.has('code') ||
+        (hash.has('access_token') && hash.get('type') === 'signup');
+
+      if (!isSignupCallback) return;
+
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        const user = data.session?.user;
+        if (user && user.email_confirmed_at) {
+          registrationContent.hidden = true;
+          completeState.hidden = false;
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          showMessage('We could not verify the confirmation yet. Please open the confirmation email again or request a new confirmation link.', 'error');
+        }
+      } catch (error) {
+        showMessage('We could not complete email verification. Please open the confirmation email again. ' + (error?.message || ''), 'error');
+      }
+    }
+
+    handleEmailConfirmation();
 
     document.querySelectorAll('[data-toggle]').forEach((button) => {
       button.addEventListener('click', () => {
